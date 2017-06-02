@@ -5,7 +5,7 @@ volatile float rpm;
 volatile unsigned long previous_time;
 
 void speed_setup() {
-    pinMode(HALL_SENSOR_PIN, INPUT);
+    pinMode(HALL_SENSOR_PIN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(HALL_SENSOR_PIN), on_magnet_flip, RISING);
 }
 
