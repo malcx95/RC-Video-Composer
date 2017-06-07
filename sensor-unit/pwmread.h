@@ -9,8 +9,8 @@
  */
 const uint8_t NUM_VALUES_TO_STORE = 3;
 
-const unsigned long MAX_PULSE_WIDTH = 2000;
-const unsigned long MIN_PULSE_WIDTH = 1000;
+const float MAX_PULSE_WIDTH = 2000.0;
+const float MIN_PULSE_WIDTH = 1000.0;
 
 struct PWMStatus {
 
@@ -29,6 +29,8 @@ void update_pwm(uint8_t pin, PWMStatus* status);
  * a miscalculation of the time will probably always be an over-estimation.
  */
 uint8_t get_current_value(PWMStatus* status);
+
+uint8_t calculate_percentage(unsigned long pulse_width);
 
 #endif /* ifndef PWM_READ_H */
 

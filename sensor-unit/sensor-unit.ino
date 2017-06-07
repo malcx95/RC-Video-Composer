@@ -4,9 +4,13 @@
 #include <stdint.h>
 #include <i2c_t3.h>
 
+const int I2C_ADDRESS = 0x66;
+const int I2C_FREQ = 10000;
+const int MESSAGE_LENGTH = 4;
+
 PWMStatus throttle;
 PWMStatus steering;
-const int I2C_ADDRESS = 0x66;
+int i;
 
 void setup() {
 
@@ -20,48 +24,44 @@ void setup() {
 
     communication_setup();
 
+    i = 0;
+
 }
 
 void loop() {
 
-    // if (digitalRead(23) == HIGH) {
-    //     digitalWrite(13, HIGH);
-    // } else {
-    //     digitalWrite(13, LOW);
-    // }
+    i++;
 
-    // update_pwm(22, &status);
+    update_pwm(22, &throttle);
 
-    // if (i % 1000 == 0) {
-    //     Serial.println(status.pulse_width - 8000);
-    // }
+    if (i % 50000 == 0) {
+        Serial.print(throttle.values[0]);
+        Serial.print(" ");
+        Serial.print(throttle.values[1]);
+        Serial.print(" ");
+        Serial.print(throttle.values[2]);
+        Serial.println(" ");
+        Serial.println(throttle.pulse_width);
+    }
 
-    // Serial.println(get_rpm());
-
-    // delay(100);
 }
 
 void communication_setup() {
-    Wire.begin(I2C_SLAVE, I2C_ADDRESS, I2C_PINS_18_19, I2C_PULLUP_EXT, 100000);
+    Wire.begin(I2C_SLAVE, I2C_ADDRESS, I2C_PINS_18_19,
+               I2C_PULLUP_EXT, I2C_FREQ);
     Wire.onRequest(on_request);
     Wire.onReceive(on_command);
 }
 
-void update() {
-    // if (available) {
-    //     for (int i = 0; i < 10; ++i) {
-    //         Serial.print(buffer[i]);
-    //         Serial.print(' ');
-    //     }
-    //     Serial.println(" ");
-    // }
-    // available = false;
-}
-
 void on_request() {
-    // Wire.write(buffer, 10);
-    // digitalWrite(13, LOW);
-    // available = true;
+    digitalWrite(13, HIGH);
+    uint8_t message[MESSAGE_LENGTH];
+    message[0] = get_speed();
+    message[1] = 12;
+    message[2] = get_current_value(&throttle);
+    message[3] = 70;
+    Wire.write(message, MESSAGE_LENGTH);
+    digitalWrite(13, LOW);
 }
 
 void on_command(size_t num_bytes) {
