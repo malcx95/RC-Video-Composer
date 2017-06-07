@@ -55,3 +55,13 @@ uint8_t calculate_percentage(unsigned long pulse_width) {
         (MAX_PULSE_WIDTH - MIN_PULSE_WIDTH);
 }
 
+uint8_t get_current_value(PWMStatus* status) {
+    uint8_t min = 0;
+    for (uint8_t i = 1; i < NUM_VALUES_TO_STORE; ++i) {
+        if (status->values[i] < min) {
+            min = status->values[i];
+        }
+    }
+    return min;
+}
+
