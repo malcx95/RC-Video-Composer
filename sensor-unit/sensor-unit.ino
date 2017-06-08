@@ -1,5 +1,6 @@
 #include "pwmread.h"
 #include "speed.h"
+#include "temp.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <i2c_t3.h>
@@ -10,6 +11,8 @@ const int MESSAGE_LENGTH = 4;
 
 PWMStatus throttle;
 PWMStatus steering;
+int temperature;
+
 int i;
 
 void setup() {
@@ -21,6 +24,7 @@ void setup() {
     speed_setup();
 
     pwm_read_setup(22, &throttle, 0);
+    pwm_read_setup(21, &steering, 0);
 
     communication_setup();
 
@@ -35,13 +39,7 @@ void loop() {
     update_pwm(22, &throttle);
 
     if (i % 50000 == 0) {
-        Serial.print(throttle.values[0]);
-        Serial.print(" ");
-        Serial.print(throttle.values[1]);
-        Serial.print(" ");
-        Serial.print(throttle.values[2]);
-        Serial.println(" ");
-        Serial.println(throttle.pulse_width);
+        Serial.println(get_current_value(&throttle));
     }
 
 }
