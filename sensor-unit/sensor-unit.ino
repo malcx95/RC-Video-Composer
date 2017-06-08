@@ -23,8 +23,8 @@ void setup() {
 
     speed_setup();
 
-    pwm_read_setup(22, &throttle, 0);
-    pwm_read_setup(21, &steering, 0);
+    pwm_read_setup(16, &throttle, 0);
+    pwm_read_setup(15, &steering, 0);
 
     communication_setup();
 
