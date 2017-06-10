@@ -1,6 +1,5 @@
 #include "pwmread.h"
 #include "speed.h"
-#include "temp.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <i2c_t3.h>
@@ -21,6 +20,10 @@ void setup() {
 
     Serial.begin(9600);
 
+    digitalWrite(13, HIGH);
+    delay(1000);
+    digitalWrite(13, LOW);
+
     speed_setup();
 
     pwm_read_setup(16, &throttle, 0);
@@ -36,11 +39,14 @@ void loop() {
 
     i++;
 
-    update_pwm(22, &throttle);
+    update_pwm(16, &throttle);
+    update_pwm(15, &steering);
 
     if (i % 50000 == 0) {
-        Serial.println(get_current_value(&throttle));
+        Serial.println(get_rpm());
     }
+
+    digitalWrite(13, digitalRead(17));
 
 }
 
