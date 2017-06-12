@@ -4,17 +4,20 @@ from datetime import datetime
 import time
 import smbus
 
-SENSOR_DATA_FORMAT = "Speed: {} km/h\nSteering: {}\nThrottle: {}\nTemperature: {} C"
+SENSOR_UNIT_ADDRESS = 0x66
+
+SENSOR_DATA_LENGTH = 3
+SENSOR_DATA_FORMAT = "Speed: {} km/h\nSteering: {}\nThrottle: {}"
 
 class SensorDataFrame:
 
     def __init__(self, data):
-        self.speed, self.steering, self.throttle, self.temp = data
+        self.speed, self.steering, self.throttle = data
         self.timestamp = datetime.now()
 
     def __str__(self):
         return SENSOR_DATA_FORMAT.format(self.speed, self.steering, 
-                                         self.throttle, self.temp)
+                                         self.throttle)
 
 
 def i2c_test():
@@ -24,7 +27,8 @@ def i2c_test():
         while True:
             start = time.time()
             try:
-                data = bus.read_i2c_block_data(0x66, 0, 4)
+                data = bus.read_i2c_block_data(SENSOR_UNIT_ADDRESS,
+                                               0, SENSOR_DATA_LENGTH)
                 print(str(SensorDataFrame(data)))
             except (IOError, TimeoutError, OSError):
                 pass

@@ -6,11 +6,10 @@
 
 const int I2C_ADDRESS = 0x66;
 const int I2C_FREQ = 10000;
-const int MESSAGE_LENGTH = 4;
+const int MESSAGE_LENGTH = 3;
 
 PWMStatus throttle;
 PWMStatus steering;
-int temperature;
 
 int i;
 
@@ -61,9 +60,8 @@ void on_request() {
     digitalWrite(13, HIGH);
     uint8_t message[MESSAGE_LENGTH];
     message[0] = get_speed();
-    message[1] = 12;
+    message[1] = get_current_value(&steering);
     message[2] = get_current_value(&throttle);
-    message[3] = 70;
     Wire.write(message, MESSAGE_LENGTH);
     digitalWrite(13, LOW);
 }
