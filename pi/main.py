@@ -4,6 +4,7 @@ from datetime import datetime
 import time
 import smbus
 import os
+import picamera
 
 OUTPUT_DIR = "/home/pi/recordings"
 
@@ -38,11 +39,15 @@ def should_cancel():
 
 
 def record():
+
+    camera = picamera.PiCamera()
+
     recording_dir = os.path.join(
         OUTPUT_DIR,
         datetime.now().strftime("%Y%m%d%-%H%M%S"))
     os.makedirs(recording_dir)
 
+    camera.start_recording(os.path.join(recording_dir, "video.h264"))
     # TODO start video recording
     
     with open(os.path.join(recording_dir, "sensor.csv")) as output:
@@ -60,8 +65,8 @@ def record():
                         elapsed=str(time.time() - start_time)))
                 
             except (IOError, TimeoutError, OSError):
-                pass
-            time.sleep(0.028)
+                continue
+            time.sleep(0.02)
 
 
 def i2c_test():
@@ -87,9 +92,17 @@ def i2c_test():
 
 
 def main():
+
     setup()
+    record()
     # i2c_test()
-    
+    # camera = picamera.PiCamera()
+    # try:
+    #     camera.start_recording('test.h264')
+    #     while True:
+    #         time.sleep(1)
+    # except KeyboardInterrupt:
+    #     camera.stop_recording()
 
 
 if __name__ == "__main__":
