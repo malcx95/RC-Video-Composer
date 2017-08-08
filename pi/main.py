@@ -13,16 +13,6 @@ SENSOR_DATA_LENGTH = 3
 SENSOR_DATA_PRINT_FORMAT = "Speed: {} km/h\nSteering: {}\nThrottle: {}"
 SENSOR_DATA_FILE_FORMAT = "{speed},{steering},{throttle},{elapsed}"
 
-class SensorDataFrame:
-
-    def __init__(self, data):
-        self.speed, self.steering, self.throttle = data
-        self.timestamp = datetime.now()
-
-    def __str__(self):
-        return SENSOR_DATA_PRINT_FORMAT.format(self.speed, self.steering, 
-                                         self.throttle)
-
 
 def setup():
     if not os.path.exists(OUTPUT_DIR):
@@ -48,7 +38,6 @@ def record():
     os.makedirs(recording_dir)
 
     camera.start_recording(os.path.join(recording_dir, "video.h264"))
-    # TODO start video recording
     
     with open(os.path.join(recording_dir, "sensor.csv")) as output:
         # write the start of the recording
@@ -60,7 +49,7 @@ def record():
             try:
                 speed, steering, throttle = bus.read_i2c_block_data(
                     SENSOR_UNIT_ADDRESS, 0, SENSOR_DATA_LENGTH)
-                output.write(SENSOR_DATA_PRINT_FORMAT.format(
+                output.write(SENSOR_DATA_FILE_FORMAT.format(
                     speed=speed, steering=steering, throttle=throttle, 
                         elapsed=str(time.time() - start_time)))
                 
