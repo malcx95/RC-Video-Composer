@@ -3,6 +3,7 @@
 import gizeh
 import moviepy.editor as edit
 import argparse
+import numpy
 
 W, H = 128, 128
 
@@ -10,13 +11,48 @@ W, H = 128, 128
 # to the sensor value at that instant
 sensor_data = {}
 
+GRAPHICS_POS = (100, 100)
+
+global main_clip
+
 def make_frame(t):
 
-    surface = gizeh.Surface(W,H, bg_color=(0, 0, 0, 0))
+    global main_clip
+    # width, height = main_clip.size
+
+    surface = gizeh.Surface(W, H, bg_color=(0, 0, 0))
     radius = W * (1 + (t * (2 - t)) ** 2 ) / 6
     circle = gizeh.circle(radius, xy = (W / 2,H / 2), fill=(1, 0, 0))
     circle.draw(surface)
-    return surface.get_npimage()
+
+    return key_out_color(surface.get_npimage(), 
+                         main_clip.get_frame(t), (0, 0, 0), 
+                         W, H, GRAPHICS_POS)
+
+
+def color_equals(c1, c2):
+    r1, g1, b1 = c1
+    r2, g2, b2 = c2
+    return r1 == r2 and g1 == g2 and b1 == b2
+
+
+def key_out_color(foreground, background, color, width, height, pos):
+    """Makes the given color transparent in the foreground frame"""
+
+    # Create a result image
+    result = [[(0, 0, 0) for x in range(width)] for y in range(height)]
+
+    x_pos, y_pos = pos
+
+    for x in range(width):
+        for y in range(height):
+            y_index = y + y_pos - 1
+            x_index = x + x_pos - 1
+            if color_equals(foreground[y_index][x_index], color):
+                result[y_index][x_index] = background[y_index][x_index]
+            else:
+                result[y_index][x_index] = foreground[y_index][x_index]
+    return numpy.array(result)
 
 
 def write_file(clip, output_file):
@@ -40,12 +76,15 @@ def main():
 
     args = argparser.parse_args()
 
-    clip1 = edit.VideoFileClip("./example-video/EXAMPLE1.MOV")
-    graphics = edit.VideoClip(make_frame, duration=clip1.duration)
+    global main_clip
+    main_clip = edit.VideoFileClip(args.maincam)
+    graphics = edit.VideoClip(make_frame, duration=main_clip.duration)
     # clip2 = edit.VideoFileClip("./example-video/EXAMPLE2.MOV")
     # final = edit.concatenate_videoclips([clip1, clip2])
 
-    write_file(edit.CompositeVideoClip([clip1, graphics.set_position((100, 100))]), "out/out.mp4")
+    write_file(edit.CompositeVideoClip([main_clip,
+                                        graphics.set_position(GRAPHICS_POS)]),
+               "out/out1.mp4")
 
 if __name__ == "__main__":
     main()
