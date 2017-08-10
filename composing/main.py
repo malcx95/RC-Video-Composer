@@ -4,6 +4,7 @@ import gizeh
 import moviepy.editor as edit
 import argparse
 import numpy
+import pdb
 
 W, H = 128, 128
 
@@ -44,14 +45,15 @@ def key_out_color(foreground, background, color, width, height, pos):
 
     x_pos, y_pos = pos
 
+
     for x in range(width):
         for y in range(height):
-            y_index = y + y_pos - 1
-            x_index = x + x_pos - 1
-            if color_equals(foreground[y_index][x_index], color):
-                result[y_index][x_index] = background[y_index][x_index]
+            y_index = y + y_pos
+            x_index = x + x_pos
+            if color_equals(foreground[x][y], color):
+                result[y][x] = background[y_index][x_index]
             else:
-                result[y_index][x_index] = foreground[y_index][x_index]
+                result[y][x] = foreground[y][x]
     return numpy.array(result)
 
 
