@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 from datetime import datetime
+import RPi.GPIO as GPIO
 import time
 import smbus
 import os
@@ -13,19 +14,27 @@ SENSOR_DATA_LENGTH = 3
 SENSOR_DATA_PRINT_FORMAT = "Speed: {} km/h\nSteering: {}\nThrottle: {}"
 SENSOR_DATA_FILE_FORMAT = "{speed},{steering},{throttle},{elapsed}"
 
+LED_GREEN = 26
+LED_YELLOW1 = 19
 
-def setup():
+# This LED doesn't work :(
+# LED_YELLOW2 = 20
+
+LED_YELLOW2 = 17
+LED_RED = 14
+BUTTON_PORT = 21
+
+
+def setup_output_dir():
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
 
 
-def should_cancel():
+def button_pressed():
     """
-    Returns whether someone presses the cancel button.
+    Returns whether someone is pressing the button.
     """
-
-    # TODO implement
-    return False
+    return not GPIO.input(BUTTON_PORT)
 
 
 def record():
@@ -45,13 +54,16 @@ def record():
         output.write(start_datetime.strftime("%Y,%m,%d,%H,%M,%S,%f") + '\n')
         start_time = time.time()
 
-        while not should_cancel():
+        while not button_pressed():
             try:
                 speed, steering, throttle = bus.read_i2c_block_data(
                     SENSOR_UNIT_ADDRESS, 0, SENSOR_DATA_LENGTH)
-                output.write(SENSOR_DATA_FILE_FORMAT.format(
+
+                data_packet = SENSOR_DATA_FILE_FORMAT.format(
                     speed=speed, steering=steering, throttle=throttle, 
-                        elapsed=str(time.time() - start_time)))
+                        elapsed=str(time.time() - start_time))
+                output.write(data_packet)
+                print(data_packet)
                 
             except (IOError, TimeoutError, OSError):
                 continue
@@ -62,15 +74,15 @@ def i2c_test():
     bus = smbus.SMBus(1)
     # bus.write_block_data(0x66, 0, [2, 32, 1, 0, 23])
     try:
-        while True:
+        while not button_pressed():
             start = time.time()
             try:
                 data = bus.read_i2c_block_data(SENSOR_UNIT_ADDRESS,
                                                0, SENSOR_DATA_LENGTH)
-                print(str(SensorDataFrame(data)))
+                print(data)
             except (IOError, TimeoutError, OSError):
                 pass
-            time.sleep(0.028)
+            time.sleep(0.02)
             print("")
             print("Time: " + str(time.time() - start))
             print("")
@@ -80,10 +92,64 @@ def i2c_test():
         bus.close()
 
 
+def countdown():
+    """
+    Blinks the green and yellow leds three times. 
+    Cancels if button is pressed. Returns False if cancelled,
+    True otherwise.
+    """
+
+    GPIO.output(LED_GREEN, False)
+
+    time.sleep(1)
+
+    for led in [LED_GREEN, LED_YELLOW1, LED_YELLOW2]:
+        for i in range(6):
+            time.sleep(0.5)
+
+            if button_pressed():
+                GPIO.output(led, False)
+                return False
+
+            GPIO.output(led, (i + 1) % 2)
+
+    time.sleep(0.5)
+    return True
+
+
 def main():
 
-    setup()
-    record()
+    GPIO.setmode(GPIO.BCM)
+
+    GPIO.setup(LED_RED, GPIO.OUT)
+    GPIO.setup(LED_GREEN, GPIO.OUT)
+    GPIO.setup(LED_YELLOW1, GPIO.OUT)
+    GPIO.setup(LED_YELLOW2, GPIO.OUT)
+
+    GPIO.setup(BUTTON_PORT, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+    setup_output_dir()
+
+    while True:
+
+        # Standby mode
+
+        GPIO.output(LED_GREEN, True)
+        GPIO.output(LED_RED, False)
+
+        if button_pressed():
+            if countdown():
+                GPIO.output(LED_RED, True)
+                # record()
+                i2c_test()
+                GPIO.output(LED_RED, False)
+                time.sleep(1)
+
+        time.sleep(0.1)
+
+
+    # setup()
+    # record()
     # i2c_test()
     # camera = picamera.PiCamera()
     # try:
@@ -95,5 +161,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        GPIO.cleanup()
 
