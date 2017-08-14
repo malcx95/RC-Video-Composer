@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 
-import gizeh
-import moviepy.editor as edit
+#import gizeh
+#import moviepy.editor as edit
 import argparse
 import numpy
 import pdb
+import math
 
 W, H = 128, 128
 
@@ -13,6 +14,7 @@ W, H = 128, 128
 sensor_data = {}
 
 GRAPHICS_POS = (100, 100)
+PADDING = 3
 
 global main_clip
 
@@ -29,6 +31,39 @@ def make_frame(t):
     return key_out_color(surface.get_npimage(), 
                          main_clip.get_frame(t), (0, 0, 0), 
                          W, H, GRAPHICS_POS)
+
+
+def read_sensor_data(sensor_file, main_clip):
+    pass
+
+
+
+def create_steering_mask(steering, width, height):
+    """
+    Creates a mask for masking out the steering scale.
+
+    steering must be a value from -50 (100% left) to 50 (100% right)
+    """
+
+    num_ticks = abs(steering)
+
+    tick_width = width // 100
+
+    row = [0.0 for x in range(width)]
+
+    if (steering >= 0):
+        # steering to the right
+        for tick in range(num_ticks):
+            tick_index = tick * tick_width + width // 2
+            for i in range(tick_width - PADDING):
+                row[tick_index + i] = 1.0
+    else:
+        # steering to the left
+        for tick in range(num_ticks):
+            tick_index = width // 2 - tick * tick_width
+            for i in range(tick_width - PADDING):
+                row[tick_index - i - 1] = 1.0
+    return [row for y in range(height)]
 
 
 def color_equals(c1, c2):
