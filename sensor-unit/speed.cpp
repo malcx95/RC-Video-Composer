@@ -22,7 +22,7 @@ void on_magnet_flip() {
     speed = (uint8_t)((METERS_PER_TURN / 
             (float)(previous_time - prev)) * CONVERSION_FACTOR_TO_KMH);
 
-    // rpm = MINUTE_IN_MICROSECONDS / ((float)(previous_time - prev));
+    rpm = MINUTE_IN_MICROSECONDS / ((float)(previous_time - prev));
 }
 
 float get_rpm() {

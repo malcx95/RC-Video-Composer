@@ -37,21 +37,21 @@ def button_pressed():
     return not GPIO.input(BUTTON_PORT)
 
 
-def record():
-
-    camera = picamera.PiCamera()
+def record(camera):
 
     recording_dir = os.path.join(
         OUTPUT_DIR,
-        datetime.now().strftime("%Y%m%d%-%H%M%S"))
+        datetime.now().strftime("%Y%m%d-%H%M%S"))
     os.makedirs(recording_dir)
 
     camera.start_recording(os.path.join(recording_dir, "video.h264"))
+
+    bus = smbus.SMBus(1)
     
-    with open(os.path.join(recording_dir, "sensor.csv")) as output:
+    with open(os.path.join(recording_dir, "sensor.csv"), 'w') as output:
         # write the start of the recording
         start_datetime = datetime.now()
-        output.write(start_datetime.strftime("%Y,%m,%d,%H,%M,%S,%f") + '\n')
+        output.write(start_datetime.strftime("%Y,%m,%d,%H,%M,%S,%f"))
         start_time = time.time()
 
         while not button_pressed():
@@ -62,7 +62,7 @@ def record():
                 data_packet = SENSOR_DATA_FILE_FORMAT.format(
                     speed=speed, steering=steering, throttle=throttle, 
                         elapsed=str(time.time() - start_time))
-                output.write(data_packet)
+                output.write(data_packet + '\n')
                 print(data_packet)
                 
             except (IOError, TimeoutError, OSError):
@@ -130,22 +130,23 @@ def main():
 
     setup_output_dir()
 
-    while True:
+    with picamera.PiCamera(resolution="1920x1080", framerate=30) as camera:
 
-        # Standby mode
+        while True:
 
-        GPIO.output(LED_GREEN, True)
-        GPIO.output(LED_RED, False)
+            # Standby mode
 
-        if button_pressed():
-            if countdown():
-                GPIO.output(LED_RED, True)
-                # record()
-                i2c_test()
-                GPIO.output(LED_RED, False)
-                time.sleep(1)
+            GPIO.output(LED_GREEN, True)
+            GPIO.output(LED_RED, False)
 
-        time.sleep(0.1)
+            if button_pressed():
+                if countdown():
+                    GPIO.output(LED_RED, True)
+                    record(camera)
+                    GPIO.output(LED_RED, False)
+                    time.sleep(1)
+
+            time.sleep(0.1)
 
 
     # setup()
