@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
-#import gizeh
-#import moviepy.editor as edit
+import gizeh
+import moviepy.editor as edit
 import argparse
 import numpy
 import pdb
@@ -10,13 +10,13 @@ import math
 W, H = 128, 128
 
 # The sensor data, where each time t is mapped
-# to the sensor value at that instant
-sensor_data = {}
+# to the sensor values at that instant
+global sensor_data
+
+global main_clip
 
 GRAPHICS_POS = (100, 100)
 PADDING = 3
-
-global main_clip
 
 def make_frame(t):
 
@@ -34,9 +34,42 @@ def make_frame(t):
 
 
 def read_sensor_data(sensor_file, main_clip):
-    pass
+    lines = None
+    with open(sensor_file) as f:
+        lines = f.readlines()
+    date = lines[0]
+    raw_sensor_data = lines[1:]
+
+    result = {}
+
+    data_index = 0
+
+    # iterate over the times
+    for time, _ in main_clip.iter_frames(with_times=True):
+        while True:
+            if data_index == len(raw_sensor_data):
+                break
+            d = raw_sensor_data[data_index].split(',')
+            _, _, _, elapsed = d
+            if float(elapsed) >= time:
+                result[time] = process_sensor_data(d)
+                break
+            data_index += 1
+    return result
 
 
+def process_sensor_data(raw_data):
+    """
+    Creates one sensor data frame from the given raw data
+    frame. The result is ready to be read by the video 
+    processing functions.
+
+    Returns (speed (km/h), steering (-50 to 50), throttle (-50 to 50))
+    """
+    speed, steering, throttle, _ = raw_data
+    return (int(speed), int((int(steering) - 127) * (50.0 / 127.0)),
+           int((int(throttle) - 127) * (50.0 / 127.0)))
+ 
 
 def create_steering_mask(steering, width, height):
     """
@@ -115,6 +148,15 @@ def main():
 
     global main_clip
     main_clip = edit.VideoFileClip(args.maincam)
+
+    global sensor_data
+    sensor_data = read_sensor_data(args.sensordata, main_clip)
+
+    for t, _ in main_clip.iter_frames(with_times=True):
+        print(str(t) + ":" + " " + str(sensor_data[t]))
+
+    # pdb.set_trace()
+
     graphics = edit.VideoClip(make_frame, duration=main_clip.duration)
     # clip2 = edit.VideoFileClip("./example-video/EXAMPLE2.MOV")
     # final = edit.concatenate_videoclips([clip1, clip2])
