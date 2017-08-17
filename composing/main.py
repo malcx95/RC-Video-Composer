@@ -8,8 +8,6 @@ import scipy
 import pdb
 import math
 
-W, H = 128, 128
-
 # The sensor data, where each time t is mapped
 # to the sensor values at that instant
 global sensor_data
@@ -20,8 +18,8 @@ global throttle_image
 
 THROTTLE_MIDPOINT = 89.0
 
-STEERING_POS = (100, 100)
-THROTTLE_POS = (1700, 100)
+STEERING_POS = (210, 1000)
+THROTTLE_POS = (1840, 210)
 PADDING = 3
 
 def make_steering_frame(t):
@@ -157,14 +155,14 @@ def create_throttle_mask(throttle, width, height):
         for tick in range(num_ticks):
             tick_index = tick_height * 50 - tick * tick_height
             for i in range(tick_height - PADDING):
-                result[tick_index - i - 1] = [False for x in range(width)]
+                result[tick_index - i - 1 - PADDING] = [False for x in range(width)]
     else:
-        # braking
+        # brake
         for tick in range(num_ticks):
             tick_index = tick * tick_height + tick_height * 50
             # pdb.set_trace()
             for i in range(tick_height - PADDING):
-                result[tick_index + i] = [False for x in range(width)] 
+                result[tick_index + i + PADDING] = [False for x in range(width)] 
     return result
 
 
@@ -186,13 +184,13 @@ def create_steering_mask(steering, width, height):
         for tick in range(num_ticks):
             tick_index = tick * tick_width + width // 2
             for i in range(tick_width - PADDING):
-                row[tick_index + i] = False
+                row[tick_index + i + PADDING] = False
     else:
         # steering to the left
         for tick in range(num_ticks):
             tick_index = width // 2 - tick * tick_width
             for i in range(tick_width - PADDING):
-                row[tick_index - i - 1] = False 
+                row[tick_index - i - 1 - PADDING] = False 
     return [row for y in range(height)]
 
 
@@ -232,9 +230,6 @@ def main():
 
     global sensor_data
     sensor_data = read_sensor_data(args.sensordata, main_clip)
-    # for k in sorted(sensor_data.keys()):
-    #     print(sensor_data[k])
-    # pdb.set_trace()
 
     global steering_image
     steering_image = scipy.ndimage.imread("graphics/steering-background.png")
@@ -246,13 +241,20 @@ def main():
 
     throttle_graphics = edit.VideoClip(make_throttle_frame, 
                                        duration=main_clip.duration)
-    # clip2 = edit.VideoFileClip("./example-video/EXAMPLE2.MOV")
-    # final = edit.concatenate_videoclips([clip1, clip2])
+
+    steering_bar = edit.ImageClip(
+        "graphics/steering-background-thin.png").set_duration(
+            main_clip.duration)
+    throttle_bar = edit.ImageClip(
+        "graphics/throttle-background-thin.png").set_duration(
+            main_clip.duration)
 
     write_file(
         edit.CompositeVideoClip([
             main_clip, steering_graphics.set_position(STEERING_POS),
-            throttle_graphics.set_position(THROTTLE_POS)]),
+            throttle_graphics.set_position(THROTTLE_POS),
+            steering_bar.set_position((STEERING_POS[0], STEERING_POS[1] + 70)),
+            throttle_bar.set_position((THROTTLE_POS[0] + 70, THROTTLE_POS[1]))]),
                args.output)
 
 if __name__ == "__main__":
