@@ -18,6 +18,8 @@ global main_clip
 global steering_image
 global throttle_image
 
+THROTTLE_MIDPOINT = 89.0
+
 STEERING_POS = (100, 100)
 THROTTLE_POS = (1700, 100)
 PADDING = 3
@@ -113,11 +115,18 @@ def process_sensor_data(raw_data):
     frame. The result is ready to be read by the video 
     processing functions.
 
-    Returns (speed (km/h), steering (-50 to 50), throttle (-50 to 50))
+    Returns (speed (km/h), steering (-50 to 50), throttle (-20 to 50))
     """
-    speed, steering, throttle, _ = raw_data
-    return (int(speed), int((int(steering) - 127) * (50.0 / 127.0)),
-           int((int(throttle) - 127) * (50.0 / 127.0)))
+    speed, steering, raw_throttle, _ = raw_data
+    throttle = None
+    if int(raw_throttle) < THROTTLE_MIDPOINT:
+        throttle = int((20 * int(raw_throttle) / THROTTLE_MIDPOINT)) - 20
+    else:
+        slope = 50.0 / (255.0 - THROTTLE_MIDPOINT)
+        throttle = int(int(raw_throttle) * slope - THROTTLE_MIDPOINT * slope)
+
+        
+    return (int(speed), int((int(steering) / 255.0) * 100) - 50, throttle)
  
 
 def make_steering_mask_frame(t, sensor_data, width, height):
@@ -146,15 +155,16 @@ def create_throttle_mask(throttle, width, height):
     if (throttle >= 0):
         # throttle
         for tick in range(num_ticks):
-            tick_index = tick * tick_height + (height // 10) * 2
+            tick_index = tick_height * 50 - tick * tick_height
             for i in range(tick_height - PADDING):
-                result[tick_index + i] = [False for x in range(width)]
+                result[tick_index - i - 1] = [False for x in range(width)]
     else:
         # braking
         for tick in range(num_ticks):
-            tick_index = (height // 10) * 2 - tick * tick_height
+            tick_index = tick * tick_height + tick_height * 50
+            # pdb.set_trace()
             for i in range(tick_height - PADDING):
-                result[tick_index - i - 1] = [False for x in range(width)] 
+                result[tick_index + i] = [False for x in range(width)] 
     return result
 
 
@@ -217,10 +227,14 @@ def main():
     args = argparser.parse_args()
 
     global main_clip
-    main_clip = edit.VideoFileClip(args.maincam)
+    raw_main_clip = edit.VideoFileClip(args.maincam)
+    main_clip = raw_main_clip.cutout((0, 3), (0, 25))
 
     global sensor_data
     sensor_data = read_sensor_data(args.sensordata, main_clip)
+    # for k in sorted(sensor_data.keys()):
+    #     print(sensor_data[k])
+    # pdb.set_trace()
 
     global steering_image
     steering_image = scipy.ndimage.imread("graphics/steering-background.png")
