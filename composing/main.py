@@ -7,6 +7,9 @@ import numpy
 import scipy
 import pdb
 import math
+import PIL.Image as plim
+from PIL import ImageFont, ImageDraw
+from moviepy.video.io.bindings import PIL_to_npimage
 
 # The sensor data, where each time t is mapped
 # to the sensor values at that instant
@@ -18,9 +21,14 @@ global throttle_image
 
 THROTTLE_MIDPOINT = 89.0
 
+FONT = ImageFont.FreeTypeFont("/home/malcolm/Desktop/PEPSI_pl.ttf", 80)
+
 STEERING_POS = (210, 1000)
 THROTTLE_POS = (1840, 210)
+SPEED_POS = (1710, 960)
 PADDING = 3
+
+MAX_SPEED = 120.0
 
 def make_steering_frame(t):
 
@@ -31,7 +39,7 @@ def make_steering_frame(t):
     width = len(steering_image[0])
     height = len(steering_image)
 
-    return key_out_color(steering_image, 
+    return apply_mask(steering_image, 
                          main_clip.get_frame(t),
                          make_steering_mask_frame(t, sensor_data, 
                                                   width, height),
@@ -47,16 +55,39 @@ def make_throttle_frame(t):
     width = len(throttle_image[0])
     height = len(throttle_image)
 
-    return key_out_color(throttle_image, 
+    return apply_mask(throttle_image, 
                          main_clip.get_frame(t),
                          make_throttle_mask_frame(t, sensor_data,
                                                   width, height),
                          THROTTLE_POS, width, height)
 
 
-def key_out_color(foreground, background, mask, pos, width, height):
+def color_equals(c1, c2):
+    r1, g1, b1 = c1
+    r2, g2, b2 = c2
+    return r1 == r2 and g1 == g2 and b1 == b2
+
+
+def key_out_color(foreground, background, color, width, height, pos):
     """Makes the given color transparent in the foreground frame"""
 
+    # Create a result image
+    result = [[(0, 0, 0) for x in range(width)] for y in range(height)]
+
+    x_pos, y_pos = pos
+
+    for x in range(width):
+        for y in range(height):
+            y_index = y + y_pos
+            x_index = x + x_pos
+            if color_equals(foreground[y][x], color):
+                result[y][x] = background[y_index][x_index]
+            else:
+                result[y][x] = foreground[y][x]
+    return numpy.array(result)
+
+
+def apply_mask(foreground, background, mask, pos, width, height):
     # Create a result image
     result = [[(0, 0, 0) for x in range(width)] for y in range(height)]
 
@@ -202,7 +233,25 @@ def color_equals(c1, c2):
 
 def write_file(clip, output_file):
     clip.write_videofile(output_file)
-    
+
+
+
+def make_speedometer_frame(t):
+    im = plim.new('RGB', (210, 120))
+    draw = ImageDraw.Draw(im)
+
+    global sensor_data
+
+    speed, _, _ = sensor_data[t]
+
+    red_channel = min(int((float(speed) / MAX_SPEED) * 255), 255)
+
+    draw.text((2, 0), "{}\nkm/h".format(speed), 
+              (0, 255 - red_channel, red_channel),
+              font=FONT)
+    return key_out_color(PIL_to_npimage(im), main_clip.get_frame(t),
+                         (0, 0, 0), 210, 120, SPEED_POS)
+
 
 def main():
     argparser = argparse.ArgumentParser(description=
@@ -242,6 +291,8 @@ def main():
     throttle_graphics = edit.VideoClip(make_throttle_frame, 
                                        duration=main_clip.duration)
 
+    text_test = edit.VideoClip(make_speedometer_frame, duration=main_clip.duration)
+
     steering_bar = edit.ImageClip(
         "graphics/steering-background-thin.png").set_duration(
             main_clip.duration)
@@ -254,10 +305,10 @@ def main():
             main_clip, steering_graphics.set_position(STEERING_POS),
             throttle_graphics.set_position(THROTTLE_POS),
             steering_bar.set_position((STEERING_POS[0], STEERING_POS[1] + 70)),
-            throttle_bar.set_position((THROTTLE_POS[0] + 70, THROTTLE_POS[1]))]),
+            throttle_bar.set_position((THROTTLE_POS[0] + 70, THROTTLE_POS[1])),
+            text_test.set_position(SPEED_POS)]),
                args.output)
 
 if __name__ == "__main__":
     main()
-
 
