@@ -44,30 +44,37 @@ def record(camera):
         datetime.now().strftime("%Y%m%d-%H%M%S"))
     os.makedirs(recording_dir)
 
-    camera.start_recording(os.path.join(recording_dir, "video.h264"))
+    sensor_values = {}
 
     bus = smbus.SMBus(1)
     
+    start_datetime = datetime.now()
+
+    camera.start_recording(os.path.join(recording_dir, "video.h264"))
+    start_time = time.time()
+
+    while not button_pressed():
+        try:
+            speed, steering, throttle = bus.read_i2c_block_data(
+                SENSOR_UNIT_ADDRESS, 0, SENSOR_DATA_LENGTH)
+
+            sensor_values[time.time() - start_time] = (speed, 
+                                                       steering,
+                                                       throttle)
+
+        except (IOError, TimeoutError, OSError):
+            continue
+        time.sleep(0.02)
+    camera.stop_recording()
+
     with open(os.path.join(recording_dir, "sensor.csv"), 'w') as output:
-        # write the start of the recording
-        start_datetime = datetime.now()
         output.write(start_datetime.strftime("%Y,%m,%d,%H,%M,%S,%f"))
-        start_time = time.time()
-
-        while not button_pressed():
-            try:
-                speed, steering, throttle = bus.read_i2c_block_data(
-                    SENSOR_UNIT_ADDRESS, 0, SENSOR_DATA_LENGTH)
-
-                data_packet = SENSOR_DATA_FILE_FORMAT.format(
-                    speed=speed, steering=steering, throttle=throttle, 
-                        elapsed=str(time.time() - start_time))
-                output.write(data_packet + '\n')
-                print(data_packet)
-                
-            except (IOError, TimeoutError, OSError):
-                continue
-            time.sleep(0.02)
+        for t in sorted(sensor_values.keys()):
+            speed, steering, throttle = sensor_values[t]
+            data_packet = SENSOR_DATA_FILE_FORMAT.format(
+                speed=speed, steering=steering, throttle=throttle, 
+                    elapsed=t)
+            output.write(data_packet + '\n')
 
 
 def i2c_test():
@@ -130,7 +137,7 @@ def main():
 
     setup_output_dir()
 
-    with picamera.PiCamera(resolution="1920x1080", framerate=30) as camera:
+    with picamera.PiCamera(resolution="1920x1080", framerate=25) as camera:
 
         while True:
 

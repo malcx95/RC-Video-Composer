@@ -105,12 +105,16 @@ def apply_mask(foreground, background, mask, pos, width, height):
 
 
 
-def read_sensor_data(sensor_file, main_clip):
+def read_sensor_data(sensor_file, main_clip, reverse):
     lines = None
     with open(sensor_file) as f:
         lines = f.readlines()
     date = lines[0]
     raw_sensor_data = lines[1:]
+
+    _, _, _, last_timestamp = raw_sensor_data[-1].split(',')
+
+    time_scale_factor = float(main_clip.duration) / float(last_timestamp)
 
     result = {}
 
@@ -127,10 +131,12 @@ def read_sensor_data(sensor_file, main_clip):
                 break
 
             d = raw_sensor_data[data_index].split(',')
-            _, _, _, elapsed = d
+            _, _, _, raw_time = d
+
+            elapsed = float(raw_time) * time_scale_factor
 
             if float(elapsed) >= time:
-                value = process_sensor_data(d)
+                value = process_sensor_data(d, reverse)
                 result[time] = value
                 last_value = value
                 break
@@ -138,7 +144,7 @@ def read_sensor_data(sensor_file, main_clip):
     return result
 
 
-def process_sensor_data(raw_data):
+def process_sensor_data(raw_data, reverse):
     """
     Creates one sensor data frame from the given raw data
     frame. The result is ready to be read by the video 
@@ -146,7 +152,12 @@ def process_sensor_data(raw_data):
 
     Returns (speed (km/h), steering (-50 to 50), throttle (-20 to 50))
     """
-    speed, steering, raw_throttle, _ = raw_data
+    speed = steering = raw_throttle = None
+    if reverse:
+        speed, raw_throttle, steering, _ = raw_data
+    else:
+        speed, steering, raw_throttle, _ = raw_data
+
     throttle = None
     if int(raw_throttle) < THROTTLE_MIDPOINT:
         throttle = int((20 * int(raw_throttle) / THROTTLE_MIDPOINT)) - 20
@@ -155,7 +166,7 @@ def process_sensor_data(raw_data):
         throttle = int(int(raw_throttle) * slope - THROTTLE_MIDPOINT * slope)
 
         
-    return (int(speed), int((int(steering) / 255.0) * 100) - 50, throttle)
+    return (int(speed), int(((255 - int(steering)) / 255.0) * 100) - 50, throttle)
  
 
 def make_steering_mask_frame(t, sensor_data, width, height):
@@ -271,14 +282,19 @@ def main():
     argparser.add_argument("--output", type=str, help="Output file name",
                           default="out.mp4")
 
+    argparser.add_argument("--reverse", action="store_true",
+                           help="Whether to switch the places of " + 
+                           "the throttle and steering.")
+
     args = argparser.parse_args()
 
+    reverse = bool(args.reverse)
+
     global main_clip
-    raw_main_clip = edit.VideoFileClip(args.maincam)
-    main_clip = raw_main_clip.cutout((0, 3), (0, 25))
+    main_clip = edit.VideoFileClip(args.maincam)
 
     global sensor_data
-    sensor_data = read_sensor_data(args.sensordata, main_clip)
+    sensor_data = read_sensor_data(args.sensordata, main_clip, reverse)
 
     global steering_image
     steering_image = scipy.ndimage.imread("graphics/steering-background.png")
