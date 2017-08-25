@@ -166,7 +166,7 @@ def process_sensor_data(raw_data, reverse):
         throttle = int(int(raw_throttle) * slope - THROTTLE_MIDPOINT * slope)
 
         
-    return (int(speed), int(((255 - int(steering)) / 255.0) * 100) - 50, throttle)
+    return (int(speed), int(((int(steering)) / 255.0) * 100) - 50, throttle)
  
 
 def make_steering_mask_frame(t, sensor_data, width, height):
